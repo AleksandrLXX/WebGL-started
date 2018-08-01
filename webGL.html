@@ -62,9 +62,11 @@
 		  const programInfo = {
 		     program: shaderProgram,
 		     attribLocations: {
+          // 获取attribute变量的指针位置
 		       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
 
 		       //储存颜色
+           //返回uniform 变量的指针位置
 		       vertexColor:gl.getAttribLocation(shaderProgram, "aVertexColor")
 		     },
 		     uniformLocations: {
@@ -90,28 +92,34 @@
   			  gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesBuffer);
   			  
   			  var vertices = [
-  			    1.0,  1.0,  0.0,
 			    -1.0, 1.0,  0.0,
+          1.0,  1.0,  0.0,
 			    1.0,  -1.0, 0.0,
-			    -1.0, -1.0, 0.0
+			    -1.0, -1.0, 0.0,
+          -1.0, 1.0,  0.0,
+          1.0,-1.0, 0.0,
   			  ];
   			  
 
   			  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
+          
+          // 因为 是 float32Array 所以 每个数字占 4 字节 输出 72
+          console.log('VerticesBuffer' ,gl.getBufferParameter(gl.ARRAY_BUFFER, gl.BUFFER_SIZE))
   			  //增加 颜色矩阵
   			  //
   			  var colors = [
   			      1.0,  1.0,  1.0,  1.0,    // 白色
-  			      1.0,  0.0,  0.0,  1.0,    // 红色
   			      0.0,  1.0,  0.0,  1.0,    // 绿色
-  			      0.0,  0.0,  1.0,  1.0     // 蓝色
+              1.0,  0.0,  0.0,  1.0,    // 红色
+              0.0,  0.0,  1.0,  1.0,    // 蓝色
+              1.0,  0.0,  0.0,  1.0,    // 红色
+  			      0.0,  0.0,  1.0,  1.0,    // 蓝色
   			    ];
   			    
   			 const squareVerticesColorBuffer = gl.createBuffer();
   			    gl.bindBuffer(gl.ARRAY_BUFFER, squareVerticesColorBuffer);
   			    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-
+         console.log('ColorsBuffer' ,gl.getBufferParameter(gl.ARRAY_BUFFER, gl.BUFFER_SIZE))
   			  return {
   			     position: squareVerticesBuffer,
   			     color:squareVerticesColorBuffer
@@ -139,19 +147,30 @@
   		     mat4.translate(modelViewMatrix,     // destination matrix
                  modelViewMatrix,     // matrix to translate
                  [-0.0, 0.0, -6.0]);  // amount to translate
+         
   		    // 绑定 正方形顶点缓冲到上下文  
   		    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
   		    //绑定颜色到上下文
-  		   
+  		    
   		    //  Tell WebGL how to pull out the positions from the position
 			  // buffer into the vertexPosition attribute.
   		    gl.vertexAttribPointer( programInfo.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
+
+          // 可以用这个方法修改 已载入的数据 
+          // gl.bufferSubData( gl.ARRAY_BUFFER,0, new Float32Array([
+          //               1.0,  -1.0, 0.0,
+          //               1.0,  1.0,  0.0,
+          //               -1.0, -1.0, 0.0,
+          //               -1.0, 1.0,  0.0,
+          // ]))
+
+        
   		    gl.enableVertexAttribArray(
         		programInfo.attribLocations.vertexPosition);
   		    // 制定缓存  几个buffer为一个数据  数据类型 每组数据隔几个  以及offset
   		    //   bindBuffer 一定不能连写
   		    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color);
-		    gl.vertexAttribPointer(programInfo.attribLocations.vertexColor, 4, gl.FLOAT, false, 0, 0)
+		      gl.vertexAttribPointer(programInfo.attribLocations.vertexColor, 4, gl.FLOAT, false, 0, 0)
   		    gl.enableVertexAttribArray(
         		programInfo.attribLocations.vertexColor);
   		    
@@ -170,7 +189,8 @@
   		         false,
   		         modelViewMatrix);
   		    // 通过 drawArrays方法 画出图像  offset vertexCount
-  		    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          //  绘制图元的方式 三角带  三角扇  N-2 triangles系列三角 从哪个点开始 画几个点
+  		    gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
   		  }
 
 
