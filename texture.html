@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>	
+<head>
+	<title>3D Texture WebGL</title>
+  <style type="text/css">
+    #translateRatioText,#rotateRatioText{
+      background-color: #ccc;
+    }
+  </style>
+</head>
+
+<body onload="main()">
+  <canvas id="glcanvas" width="640" height="480">
+    Your browser doesn't appear to support the HTML5 <code>&lt;canvas&gt;</code> element.
+  </canvas>
+  <p></p>
+  <label >旋转速度<input type='range' id="rotateRatio" min='0' max='5' step='0.1'></input>
+    <span id='rotateRatioText'>2.5</span>
+  </label>
+  <label >移动速度<input type='range' id="translateRatio" min='0' max='1' step='0.1'></input>
+    <span id='translateRatioText'>0.5</span>
+  </label>
+  <script src="./gl-matrix.js"></script>
+  <script type="text/javascript">
+  		function main() {
+
+        var $rotateRatio = document.querySelector('#rotateRatio')
+        var $translateRatio = document.querySelector('#translateRatio')
+        var $rotateRatioText = document.querySelector('#rotateRatioText')
+        var $translateRatioText = document.querySelector('#translateRatioText')
+        $rotateRatio.addEventListener('change',function(e){
+           $rotateRatioText.innerHTML=rotateRatio = e.target.value
+        })
+        $translateRatio.addEventListener('change',function(e){
+          $translateRatioText.innerHTML=translateRatio = e.target.value
+        })
+  		  const canvas = document.querySelector("#glcanvas");
+  		  // Initialize the GL context
+  		  const gl = canvas.getContext("webgl");
+
+  		  // Only continue if WebGL is available and working
+  		  if (!gl) {
+  		    alert("Unable to initialize WebGL. Your browser or machine may not support it.");
+  		    return;
+  		  }
+
+  		  // Set clear color to black, fully opaque
+  		  gl.clearColor(0.0, 0.0, 0.0, 1.0);
+  		  // Clear the color buffer with specified clear color
+  		  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  		  // Vertex shader program
+  		  // 顶点着色器   模型矩阵  投影矩阵矩阵
+		  const vsSource = `
+		    attribute vec4 aVertexPosition;
+
+		    attribute vec2 aTextureCoord;
+
+		    uniform mat4 uModelViewMatrix;
+		    uniform mat4 uProjectionMatrix;
+
+			  varying highp vec2 vTextureCoord;
+        
+		    void main(void) {
+		      gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+		      vTextureCoord = aTextureCoord;
+		    }
+		  `;
+
+		  //片段着色器在顶点着色器处理完图形的顶点后，会被要绘制的每个图形的每个像素点调用一次。它的职责是确定像素的颜色，通过指定应用到像素的纹理元素（也就是图形纹理中的像素）颜色存储在特殊变量gl_FragColor
+		  const fsSource = `
+		    varying highp vec2 vTextureCoord;
+        uniform sampler2D uSampler;
+		    void main(void) {
+		    	
+		      	// gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+		      	 gl_FragColor = texture2D(uSampler, vTextureCoord);
+		    }
+		  `;
+
+
+		  // 编译 着色器程序
+		  const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+
+		  //在创建着色器程序之后，我们需要查找WebGL返回分配的输入位置。在上述情况下，我们有一个属性和两个uniforms。属性从缓冲区接收值。顶点着色器的每次迭代都从分配给该属性的缓冲区接收下一个值。uniforms类似于JavaScript全局变量。它们在着色器的所有迭代中保持相同的值。由于属性和统一的位置是特定于单个着色器程序的，因此我们将它们存储在一起以使它们易于传递
+		  const programInfo = {
+		     program: shaderProgram,
+		     attribLocations: {
+          // 获取attribute变量的指针位置
+		       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
+
+		       //储存颜色
+           
+		        textureCoord: gl.getAttribLocation(shaderProgram, 'aTextureCoord'),
+		     },
+		     uniformLocations: {
+		       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
+		       modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+          uSampler: gl.getUniformLocation(shaderProgram, 'uSampler'),
+		     },
+		   };
+
+
+       
+      
+
+		   // Here's where we call the routine that builds all the
+		   // objects we'll be drawing.
+		   const buffers = initBuffers(gl);
+       const texture = loadTexture(gl, 'imgs/trianglify2.png');
+       // then
+       var lastTimeStamp = 0;
+		   // Draw the scene
+		   const render = function(now){
+         // 以毫秒为单位的时间戳 这个时间戳由页面开始渲染时开始计数
+         now *= 0.001
+
+         let deltaTime = now - lastTimeStamp
+         // 防止 js堵塞 或者 页面切换 造成不必要的意外
+         if(deltaTime*translateRatio >1){
+            deltaTime = 0
+         }
+         lastTimeStamp = now;
+        
+         drawScene(gl, programInfo, buffers,texture, deltaTime);
+
+         requestAnimationFrame(render);
+
+       }
+       requestAnimationFrame(render);
+       //  以下做法导致
+       // setTimeout(()=>{ requestAnimationFrame(render);},3000)
+		  
+  		}
+
+        var zRotatation = 0.0;
+        var xTranslation = 0.0;
+        var yTranslation = 0.0;
+        var zTranslation = 6.0;
+        var translateRatio = 0.5;
+        var rotateRatio = 0.5;
+        var zRPositive = 1;
+        var xTPositive = 1;
+        var yTPositive = 1;
+        var zTPositive = 1;
+
+  		   // 用 createBuffer 得到缓冲对象  并存储在顶点还从起 调用bindBuffer绑定上下文 
+
+  			function initBuffers(gl) {
+  			  const cubeVerticesBuffer = gl.createBuffer();
+  			  gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesBuffer);
+  			  
+          var points = {
+              1:[-1.0, -1.0,  1.0],
+              3:[1.0, -1.0,  1.0],
+              7:[1.0,  1.0,  1.0],
+              5:[-1.0,  1.0,  1.0],
+              '-7':[-1.0, -1.0, -1.0],
+              '-3':[-1.0,  1.0, -1.0],
+              '-1':[1.0,  1.0, -1.0],
+              '-5':[1.0, -1.0, -1.0],
+          }
+          var indicesHash = []
+          points.get = (index)=>{
+            indicesHash.push(index)
+            return points[index]
+          }
+          console.log('indicesHash',indicesHash)
+  			  var vertices = [
+			    // Front face
+              ...points.get(1),
+              ...points.get(3),
+              ...points.get(7),
+              ...points.get(5),
+
+              // Back face
+              ...points.get(-7),
+              ...points.get(-3),
+              ...points.get(-1),
+              ...points.get(-5),
+
+              // Top face
+              ...points.get(-1.0 + 1.0 *2 + (-1.0)*4),
+              ...points.get(-1.0 + 1.0 *2 + ( 1.0)*4),
+              ...points.get( 1.0 + 1.0 *2 + ( 1.0)*4),
+              ...points.get( 1.0 + 1.0 *2 + (-1.0)*4),
+
+              // Bottom face
+              ...points.get((-1.0) + ( -1.0)*2 + (-1.0)*4),
+              ...points.get(( 1.0) + ( -1.0)*2 + (-1.0)*4),
+              ...points.get(( 1.0) + ( -1.0)*2 + ( 1.0)*4),
+              ...points.get((-1.0) + ( -1.0)*2 + ( 1.0)*4),
+
+              // Right face
+               ...points.get( (1.0 )+(-1.0)*2+(-1.0)*4),
+               ...points.get( (1.0 )+( 1.0)*2+(-1.0)*4),
+               ...points.get( (1.0 )+( 1.0)*2+( 1.0)*4),
+               ...points.get( (1.0 )+(-1.0)*2+( 1.0)*4),
+
+              // Left face
+              ...points.get( (-1.0 )+( -1.0)*2+( -1.0)*4),
+              ...points.get( (-1.0 )+( -1.0)*2+(  1.0)*4),
+              ...points.get( (-1.0 )+(  1.0)*2+(  1.0)*4),
+              ...points.get( (-1.0 )+(  1.0)*2+( -1.0)*4),
+  			  ];
+
+  			  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+          
+          // 因为 是 float32Array 所以 每个数字占 4 字节
+          console.log('VerticesBuffer' ,gl.getBufferParameter(gl.ARRAY_BUFFER, gl.BUFFER_SIZE))
+
+
+         //增加 颜色矩阵
+          //
+          //面的颜色
+          var faceColors = [
+           // 
+            [207/255, 58/255,   125/255],    // Front face: white
+            [102/255, 204/255,  51/255],    // Back face: red
+            [11/255,  147/255,  152/255],    // Top face: green
+            [239/255, 78/255,   58/255],    // Bottom face: blue
+            [237/255, 179/255,  24/255],    // Right face: yellow
+            [255/255, 251/255,  215/255],    // Left face: purple
+          ];
+
+          var pointColors = {
+            1:[207/255, 58/255,   125/255,   1.0],    
+            3:[102/255, 204/255,  51/255,    1.0],   
+            7:[11/255,  147/255,  152/255,   1.0],   
+            5:[239/255, 78/255,   58/255,    1.0],   
+            '-7':[237/255, 179/255,  24/255,   1.0],  
+            '-3':[255/255, 251/255,  215/255,   1.0],    
+            '-1':[213/255, 205/255,  117/255,   1.0], 
+            '-5':[219/255, 190/255,  232/255,   1.0],
+          }
+          //点的颜色 
+          //纯色面
+          var colors = faceColors.reduce((prev,next)=>{return prev.concat(next,next,next,next)},[])
+          // 点色面
+          // var colors = indicesHash.reduce((prev,next)=>{return prev.concat(pointColors[next])},[])
+          console.log('colors', colors)
+          const cubeVerticesColorBuffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesColorBuffer);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+            
+          console.log('ColorsBuffer' ,gl.getBufferParameter(gl.ARRAY_BUFFER, gl.BUFFER_SIZE))
+
+         const indexBuffer = gl.createBuffer();
+         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+         //为了实现过度时的正常表现 应该用扇形
+         const indices = [
+              0,  1,  2,      0,  2,  3,    // front
+              4,  5,  6,      4,  6,  7,    // back
+              8,  9,  10,     8,  10, 11,   // top
+              12, 13, 14,     12, 14, 15,   // bottom
+              16, 17, 18,     16, 18, 19,   // right
+              20, 21, 22,     20, 22, 23,   // left
+          ];
+          // 索引必然是整型
+          gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
+            new Uint16Array(indices), gl.STATIC_DRAW);
+          console.log('indexBuffer' ,gl.getBufferParameter(gl.ELEMENT_ARRAY_BUFFER, gl.BUFFER_SIZE))
+
+
+  			  return {
+  			     position: cubeVerticesBuffer,
+  			     textureCoord:cubeVerticesColorBuffer,
+             indices:indexBuffer
+  			   };
+
+  			}
+
+
+  		  function drawScene(gl, programInfo, buffers,texture,deltaTime) {
+
+  		  	// 用背景色 擦除上下嗯 
+  		    gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
+  		    gl.clearDepth(1.0);                 // Clear everything
+  		    gl.enable(gl.DEPTH_TEST);           // Enable depth testing
+  		    gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
+  		    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  		    // 建立摄像机透视矩阵  45度视角 宽高比  0.1  100 可见
+          // 目前 模型坐标系和投影坐标系  原点重合
+          const projectionMatrix = mat4.create();
+          const modelViewMatrix = mat4.create();
+            makePerspective(projectionMatrix,90, 640.0/480.0, 0.1, 100.0);
+          //加载特定位置
+          // loadIdentity();
+          // 正方形 放在距离摄像机6个单位位置 
+          // mat4.translate(modelViewMatrix,     // destination matrix
+          //        modelViewMatrix,     // matrix to translate
+          //        [-0.0, 0.0, -6.0]);  // amount to translate
+          // 绘制场景  由于没有动画 所以这个方法非常简单 
+  		  
+
+          // 通过4维矩阵js库  右手坐标系 屏幕法线为z 即绕z正轴轴顺时针旋转45度
+                      
+
+         //                    |y
+         //                    |
+         //                    |_ _ _ _x
+         //                   / 
+         //                  /                  
+         //                 /z
+         
+         //事实上矩阵是左乘的  下式为先旋转后移动
+          // mat4.translate(modelViewMatrix,modelViewMatrix,[4,0,-6])
+          // mat4.rotate(modelViewMatrix,modelViewMatrix,Math.PI/2,[0,0,1])
+          
+          mat4.translate(modelViewMatrix,modelViewMatrix,[xTranslation,yTranslation,-zTranslation])
+          mat4.rotate(modelViewMatrix,modelViewMatrix,zRotatation,[0,0,1])
+          mat4.rotate(modelViewMatrix,modelViewMatrix,zRotatation*2,[0,1,0])
+          mat4.rotate(modelViewMatrix,modelViewMatrix,zRotatation*4,[1,0,0])
+          zRotatation += deltaTime*rotateRatio
+
+          // 这个判断有点问题 当碰上大量计算 或者 离开页面时  会导致deltaTime时间过长 导致增加量过大 一次性突破临界
+          if( xTranslation<=6 && xTranslation+xTPositive*deltaTime*translateRatio>6
+            ||  xTranslation>= -6 && xTranslation+xTPositive*deltaTime*translateRatio<-6
+            ){
+            xTPositive=-xTPositive
+          }else{
+          }
+          if( yTranslation<=4.5 && yTranslation+yTPositive*deltaTime*translateRatio>4.5
+            ||  yTranslation>= -4.5 && yTranslation+yTPositive*deltaTime*translateRatio<-4.5
+            ){
+            yTPositive=-yTPositive
+          }         
+           if( zTranslation<=7 && zTranslation+zTPositive*deltaTime*translateRatio>7
+            ||  zTranslation>= 5 && zTranslation+zTPositive*deltaTime*translateRatio<5
+            ){
+            zTPositive = -zTPositive
+          }else{
+          }      
+          xTranslation += xTPositive*deltaTime*translateRatio
+          yTranslation += yTPositive*deltaTime*translateRatio
+          zTranslation += zTPositive*deltaTime*translateRatio
+       
+
+
+
+         {
+      		    // 绑定 正方形顶点缓冲到上下文  
+      		    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
+      		    //绑定颜色到上下文
+      		    
+      		    //  Tell WebGL how to pull out the positions from the position
+    			  // buffer into the vertexPosition attribute.
+      		    gl.vertexAttribPointer( programInfo.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
+
+              // 可以用这个方法修改 已载入的数据 
+              // gl.bufferSubData( gl.ARRAY_BUFFER,0, new Float32Array([
+              //               1.0,  -1.0, 0.0,
+              //               1.0,  1.0,  0.0,
+              //               -1.0, -1.0, 0.0,
+              //               -1.0, 1.0,  0.0,
+              // ]))
+
+              
+      		    gl.enableVertexAttribArray(
+            		programInfo.attribLocations.vertexPosition);
+      		    // 制定缓存  几个buffer为一个数据  数据类型 每组数据隔几个  以及offset
+      		    //   bindBuffer 一定不能连写
+      		    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.textureCoord);
+    		      gl.vertexAttribPointer(programInfo.attribLocations.textureCoord, 2, gl.FLOAT, false, 0, 0)
+      		    gl.enableVertexAttribArray(
+            		programInfo.attribLocations.textureCoord);
+
+              gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,buffers.indices)
+          }
+  		    
+  		    // Tell WebGL to use our program when drawing
+
+  		     gl.useProgram(programInfo.program);
+
+  		     // Set the shader uniforms
+
+  		     gl.uniformMatrix4fv(
+  		         programInfo.uniformLocations.projectionMatrix,
+  		         false,
+  		         projectionMatrix);
+  		     gl.uniformMatrix4fv(
+  		         programInfo.uniformLocations.modelViewMatrix,
+  		         false,
+  		         modelViewMatrix);
+
+             // Tell WebGL we want to affect texture unit 0
+            gl.activeTexture(gl.TEXTURE0);
+
+            // Bind the texture to texture unit 0
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+
+            // Tell the shader we bound the texture to texture unit 0
+            gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
+  		    // 通过 drawArrays方法 画出图像  offset vertexCount
+          //  绘制图元的方式 三角带  三角扇  N-2 triangles系列三角 从哪个点开始 画几个点
+          //  按索引去寻找顶点位置,由于是按TRIANGLE_TRIGLES绘制 6个面需要12个三角形需要36个点
+  		    gl.drawElements(gl.TRIANGLES, 36,gl.UNSIGNED_SHORT, 0);
+  		  }
+
+        //
+        // Initialize a texture and load an image.
+        // When the image finished loading copy it into the texture.
+        //
+        function loadTexture(gl, url) {
+          const texture = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, texture);
+
+          // Because images have to be download over the internet
+          // they might take a moment until they are ready.
+          // Until then put a single pixel in the texture so we can
+          // use it immediately. When the image has finished downloading
+          // we'll update the texture with the contents of the image.
+          const level = 0;
+          const internalFormat = gl.RGBA;
+          const width = 1;
+          const height = 1;
+          const border = 0;
+          const srcFormat = gl.RGBA;
+          const srcType = gl.UNSIGNED_BYTE;
+          const pixel = new Uint8Array([0, 0, 255, 120]);  // opaque blue
+          gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+                        width, height, border, srcFormat, srcType,
+                        pixel);
+
+          const image = new Image();
+          image.crossOrigin = "anonymous"
+          image.onload = function() {
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+                          srcFormat, srcType, image);
+
+            // WebGL1 has different requirements for power of 2 images
+            // vs non power of 2 images so check if the image is a
+            // power of 2 in both dimensions.
+            if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+               // Yes, it's a power of 2. Generate mips.
+               gl.generateMipmap(gl.TEXTURE_2D);
+            } else {
+               // No, it's not a power of 2. Turn of mips and set
+               // wrapping to clamp to edge
+               gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+               gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+               gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            }
+          };
+          image.src = url;
+
+          return texture;
+        }
+
+        function isPowerOf2(value) {
+          return (value & (value - 1)) == 0;
+        }
+
+  		 function makePerspective(projectionMatrix,fieldOfView ,aspect ,zNear ,zFar ){
+  		 	fieldOfView = fieldOfView* Math.PI / 180;
+  		  	mat4.perspective(projectionMatrix,
+  		  	                  fieldOfView,
+  		  	                  aspect,
+  		  	                  zNear,
+  		  	                  zFar);
+
+  		  }
+
+  		  //  初始化着色器程序，让WebGL知道如何绘制我们的数据
+  		  function initShaderProgram(gl, vsSource, fsSource) {
+  		    const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+  		    const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+  		    // 创建着色器程序
+
+  		    const shaderProgram = gl.createProgram();
+  		    gl.attachShader(shaderProgram, vertexShader);
+  		    gl.attachShader(shaderProgram, fragmentShader);
+  		    gl.linkProgram(shaderProgram);
+
+  		    // 创建失败， alert
+  		    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+  		      alert('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
+  		      return null;
+  		    }
+
+  		    return shaderProgram;
+  		  }
+
+
+  		  //
+  		  // 创建指定类型的着色器，上传source源码并编译
+  		  //
+  		  function loadShader(gl, type, source) {
+  		    const shader = gl.createShader(type);
+
+  		    // Send the source to the shader object
+
+  		    gl.shaderSource(shader, source);
+
+  		    // Compile the shader program
+
+  		    gl.compileShader(shader);
+
+  		    // See if it compiled successfully
+
+  		    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+  		      alert('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
+  		      gl.deleteShader(shader);
+  		      return null;
+  		    }
+
+  		    return shader;
+  		  }
+  </script>
+</body>
+
+</html>
