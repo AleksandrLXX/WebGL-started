@@ -14,29 +14,44 @@
     Your browser doesn't appear to support the HTML5 <code>&lt;canvas&gt;</code> element.
   </canvas>
   <p></p>
-  <label >Ğı×ªËÙ¶È<input type='range' id="rotateRatio" min='0' max='5' step='0.1'></input>
+  <label >æ—‹è½¬é€Ÿåº¦<input type='range' id="rotateRatio" min='0' max='5' step='0.1'></input>
     <span id='rotateRatioText'>2.5</span>
   </label>
-  <label >ÒÆ¶¯ËÙ¶È<input type='range' id="translateRatio" min='0' max='1' step='0.1'></input>
+  <label >ç§»åŠ¨é€Ÿåº¦<input type='range' id="translateRatio" min='0' max='1' step='0.1'></input>
     <span id='translateRatioText'>0.5</span>
+  </label><br/>
+  <label >é€‰æ‹©çš®è‚¤<input type='file' id="textureImage" ></input>
   </label>
+  <p>å·²é€‰æ‹©çš„å›¾ç‰‡</p>
+  <img id='displayImg' alt="æœªé€‰æ‹©å›¾ç‰‡"/>
   <script src="./gl-matrix.js"></script>
   <script type="text/javascript">
   		function main() {
+  		  const canvas = document.querySelector("#glcanvas");
+  		  // Initialize the GL context
+  		  const gl = canvas.getContext("webgl");
 
         var $rotateRatio = document.querySelector('#rotateRatio')
         var $translateRatio = document.querySelector('#translateRatio')
         var $rotateRatioText = document.querySelector('#rotateRatioText')
         var $translateRatioText = document.querySelector('#translateRatioText')
+        var $textureImage = document.querySelector('#textureImage')
+        var $displayImg = document.querySelector('#displayImg')
+        var textureSelect
         $rotateRatio.addEventListener('change',function(e){
            $rotateRatioText.innerHTML=rotateRatio = e.target.value
         })
         $translateRatio.addEventListener('change',function(e){
           $translateRatioText.innerHTML=translateRatio = e.target.value
         })
-  		  const canvas = document.querySelector("#glcanvas");
-  		  // Initialize the GL context
-  		  const gl = canvas.getContext("webgl");
+        $textureImage.addEventListener('change',function(e){
+          if(e.target.files[0])
+          var url = createObjectURL(e.target.files[0])
+          console.log(e.target.files[0])
+          console.log(url)
+          displayImg.src = url;
+           textureSelect=loadTexture(gl,url)
+        })
 
   		  // Only continue if WebGL is available and working
   		  if (!gl) {
@@ -50,7 +65,7 @@
   		  gl.clear(gl.COLOR_BUFFER_BIT);
 
   		  // Vertex shader program
-  		  // ¶¥µã×ÅÉ«Æ÷   Ä£ĞÍ¾ØÕó  Í¶Ó°¾ØÕó¾ØÕó
+  		  // é¡¶ç‚¹ç€è‰²å™¨   æ¨¡å‹çŸ©é˜µ  æŠ•å½±çŸ©é˜µçŸ©é˜µ
 		  const vsSource = `
 		    attribute vec4 aVertexPosition;
 
@@ -67,7 +82,7 @@
 		    }
 		  `;
 
-		  //Æ¬¶Î×ÅÉ«Æ÷ÔÚ¶¥µã×ÅÉ«Æ÷´¦ÀíÍêÍ¼ĞÎµÄ¶¥µãºó£¬»á±»Òª»æÖÆµÄÃ¿¸öÍ¼ĞÎµÄÃ¿¸öÏñËØµãµ÷ÓÃÒ»´Î¡£ËüµÄÖ°ÔğÊÇÈ·¶¨ÏñËØµÄÑÕÉ«£¬Í¨¹ıÖ¸¶¨Ó¦ÓÃµ½ÏñËØµÄÎÆÀíÔªËØ£¨Ò²¾ÍÊÇÍ¼ĞÎÎÆÀíÖĞµÄÏñËØ£©ÑÕÉ«´æ´¢ÔÚÌØÊâ±äÁ¿gl_FragColor
+		  //ç‰‡æ®µç€è‰²å™¨åœ¨é¡¶ç‚¹ç€è‰²å™¨å¤„ç†å®Œå›¾å½¢çš„é¡¶ç‚¹åï¼Œä¼šè¢«è¦ç»˜åˆ¶çš„æ¯ä¸ªå›¾å½¢çš„æ¯ä¸ªåƒç´ ç‚¹è°ƒç”¨ä¸€æ¬¡ã€‚å®ƒçš„èŒè´£æ˜¯ç¡®å®šåƒç´ çš„é¢œè‰²ï¼Œé€šè¿‡æŒ‡å®šåº”ç”¨åˆ°åƒç´ çš„çº¹ç†å…ƒç´ ï¼ˆä¹Ÿå°±æ˜¯å›¾å½¢çº¹ç†ä¸­çš„åƒç´ ï¼‰é¢œè‰²å­˜å‚¨åœ¨ç‰¹æ®Šå˜é‡gl_FragColor
 		  const fsSource = `
 		    varying highp vec2 vTextureCoord;
         uniform sampler2D uSampler;
@@ -79,17 +94,17 @@
 		  `;
 
 
-		  // ±àÒë ×ÅÉ«Æ÷³ÌĞò
+		  // ç¼–è¯‘ ç€è‰²å™¨ç¨‹åº
 		  const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
-		  //ÔÚ´´½¨×ÅÉ«Æ÷³ÌĞòÖ®ºó£¬ÎÒÃÇĞèÒª²éÕÒWebGL·µ»Ø·ÖÅäµÄÊäÈëÎ»ÖÃ¡£ÔÚÉÏÊöÇé¿öÏÂ£¬ÎÒÃÇÓĞÒ»¸öÊôĞÔºÍÁ½¸öuniforms¡£ÊôĞÔ´Ó»º³åÇø½ÓÊÕÖµ¡£¶¥µã×ÅÉ«Æ÷µÄÃ¿´Îµü´ú¶¼´Ó·ÖÅä¸ø¸ÃÊôĞÔµÄ»º³åÇø½ÓÊÕÏÂÒ»¸öÖµ¡£uniformsÀàËÆÓÚJavaScriptÈ«¾Ö±äÁ¿¡£ËüÃÇÔÚ×ÅÉ«Æ÷µÄËùÓĞµü´úÖĞ±£³ÖÏàÍ¬µÄÖµ¡£ÓÉÓÚÊôĞÔºÍÍ³Ò»µÄÎ»ÖÃÊÇÌØ¶¨ÓÚµ¥¸ö×ÅÉ«Æ÷³ÌĞòµÄ£¬Òò´ËÎÒÃÇ½«ËüÃÇ´æ´¢ÔÚÒ»ÆğÒÔÊ¹ËüÃÇÒ×ÓÚ´«µİ
+		  //åœ¨åˆ›å»ºç€è‰²å™¨ç¨‹åºä¹‹åï¼Œæˆ‘ä»¬éœ€è¦æŸ¥æ‰¾WebGLè¿”å›åˆ†é…çš„è¾“å…¥ä½ç½®ã€‚åœ¨ä¸Šè¿°æƒ…å†µä¸‹ï¼Œæˆ‘ä»¬æœ‰ä¸€ä¸ªå±æ€§å’Œä¸¤ä¸ªuniformsã€‚å±æ€§ä»ç¼“å†²åŒºæ¥æ”¶å€¼ã€‚é¡¶ç‚¹ç€è‰²å™¨çš„æ¯æ¬¡è¿­ä»£éƒ½ä»åˆ†é…ç»™è¯¥å±æ€§çš„ç¼“å†²åŒºæ¥æ”¶ä¸‹ä¸€ä¸ªå€¼ã€‚uniformsç±»ä¼¼äºJavaScriptå…¨å±€å˜é‡ã€‚å®ƒä»¬åœ¨ç€è‰²å™¨çš„æ‰€æœ‰è¿­ä»£ä¸­ä¿æŒç›¸åŒçš„å€¼ã€‚ç”±äºå±æ€§å’Œç»Ÿä¸€çš„ä½ç½®æ˜¯ç‰¹å®šäºå•ä¸ªç€è‰²å™¨ç¨‹åºçš„ï¼Œå› æ­¤æˆ‘ä»¬å°†å®ƒä»¬å­˜å‚¨åœ¨ä¸€èµ·ä»¥ä½¿å®ƒä»¬æ˜“äºä¼ é€’
 		  const programInfo = {
 		     program: shaderProgram,
 		     attribLocations: {
-          // »ñÈ¡attribute±äÁ¿µÄÖ¸ÕëÎ»ÖÃ
+          // è·å–attributeå˜é‡çš„æŒ‡é’ˆä½ç½®
 		       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
 
-		       //´¢´æÑÕÉ«
+		       //å‚¨å­˜é¢œè‰²
            
 		        textureCoord: gl.getAttribLocation(shaderProgram, 'aTextureCoord'),
 		     },
@@ -107,28 +122,28 @@
 		   // Here's where we call the routine that builds all the
 		   // objects we'll be drawing.
 		   const buffers = initBuffers(gl);
-       const texture = loadTexture(gl, 'imgs/trianglify2.png');
+       const texture = loadTexture(gl, 'data:image/png;base64,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');
        // then
        var lastTimeStamp = 0;
 		   // Draw the scene
 		   const render = function(now){
-         // ÒÔºÁÃëÎªµ¥Î»µÄÊ±¼ä´Á Õâ¸öÊ±¼ä´ÁÓÉÒ³Ãæ¿ªÊ¼äÖÈ¾Ê±¿ªÊ¼¼ÆÊı
+         // ä»¥æ¯«ç§’ä¸ºå•ä½çš„æ—¶é—´æˆ³ è¿™ä¸ªæ—¶é—´æˆ³ç”±é¡µé¢å¼€å§‹æ¸²æŸ“æ—¶å¼€å§‹è®¡æ•°
          now *= 0.001
 
          let deltaTime = now - lastTimeStamp
-         // ·ÀÖ¹ js¶ÂÈû »òÕß Ò³ÃæÇĞ»» Ôì³É²»±ØÒªµÄÒâÍâ
+         // é˜²æ­¢ jså µå¡ æˆ–è€… é¡µé¢åˆ‡æ¢ é€ æˆä¸å¿…è¦çš„æ„å¤–
          if(deltaTime*translateRatio >1){
             deltaTime = 0
          }
          lastTimeStamp = now;
         
-         drawScene(gl, programInfo, buffers,texture, deltaTime);
+         drawScene(gl, programInfo, buffers,textureSelect||texture, deltaTime);
 
          requestAnimationFrame(render);
 
        }
        requestAnimationFrame(render);
-       //  ÒÔÏÂ×ö·¨µ¼ÖÂ
+       //  ä»¥ä¸‹åšæ³•å¯¼è‡´
        // setTimeout(()=>{ requestAnimationFrame(render);},3000)
 		  
   		}
@@ -144,7 +159,7 @@
         var yTPositive = 1;
         var zTPositive = 1;
 
-  		   // ÓÃ createBuffer µÃµ½»º³å¶ÔÏó  ²¢´æ´¢ÔÚ¶¥µã»¹´ÓÆğ µ÷ÓÃbindBuffer°ó¶¨ÉÏÏÂÎÄ 
+  		   // ç”¨ createBuffer å¾—åˆ°ç¼“å†²å¯¹è±¡  å¹¶å­˜å‚¨åœ¨é¡¶ç‚¹è¿˜ä»èµ· è°ƒç”¨bindBufferç»‘å®šä¸Šä¸‹æ–‡ 
 
   			function initBuffers(gl) {
   			  const cubeVerticesBuffer = gl.createBuffer();
@@ -206,13 +221,13 @@
 
   			  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
           
-          // ÒòÎª ÊÇ float32Array ËùÒÔ Ã¿¸öÊı×ÖÕ¼ 4 ×Ö½Ú
+          // å› ä¸º æ˜¯ float32Array æ‰€ä»¥ æ¯ä¸ªæ•°å­—å  4 å­—èŠ‚
           console.log('VerticesBuffer' ,gl.getBufferParameter(gl.ARRAY_BUFFER, gl.BUFFER_SIZE))
 
 
-         //Ôö¼Ó ÑÕÉ«¾ØÕó
-          //
-          //ÃæµÄÑÕÉ«
+         //å¢åŠ  é¢œè‰²çŸ©é˜µ
+          
+          //é¢çš„é¢œè‰²
           var faceColors = [
            // 
             [207/255, 58/255,   125/255],    // Front face: white
@@ -233,22 +248,65 @@
             '-1':[213/255, 205/255,  117/255,   1.0], 
             '-5':[219/255, 190/255,  232/255,   1.0],
           }
-          //µãµÄÑÕÉ« 
-          //´¿É«Ãæ
+          //ç‚¹çš„é¢œè‰² 
+          //çº¯è‰²é¢
           var colors = faceColors.reduce((prev,next)=>{return prev.concat(next,next,next,next)},[])
-          // µãÉ«Ãæ
+          // ç‚¹è‰²é¢
           // var colors = indicesHash.reduce((prev,next)=>{return prev.concat(pointColors[next])},[])
           console.log('colors', colors)
+
+
+          // ç”±äºæ˜¯2Dçº¹ç†  æ‰€ä»¥æ¯ä¸ªç‚¹å¯¹åº”çš„çº¹ç†ä¸Šçš„åæ ‡ä¸ºï¼ˆ0ï¼Œ0ï¼‰- ï¼ˆ1ï¼Œ1ï¼‰
+          // ä¸ºäº†è®©å›¾ç‰‡ä¸å‘ç”Ÿå½¢å˜ å°±è¦æ±‚ çº¹ç†åæ ‡è¦ä¸å®šç‚¹åæ ‡ç›¸å¯¹åº”
+          //  ç”±äºé¡¶ç‚¹éƒ½æ˜¯ä»¥ ç»•ä¸€å‘¨éå†æ’å¸ƒ æ‰€ä»¥çº¹ç†åæ ‡ä¹Ÿå¿…é¡»è¿™æ ·æ’å¸ƒ
+          //  
+          // 2 _________ 3
+          //  |         |
+          //  |         |
+          //  |         |
+          // 1|_________|4
+          const textureCoordinates = [
+                // Front
+                0.0,  0.0,
+                1.0,  0.0,
+                1.0,  1.0,
+                0.0,  1.0,
+                // Back
+                0.0,  0.0,
+                1.0,  0.0,
+                1.0,  1.0,
+                0.0,  1.0,
+                // Top
+                0.0,  0.0,
+                1.0,  0.0,
+                1.0,  1.0,
+                0.0,  1.0,
+                // Bottom
+                0.0,  0.0,
+                1.0,  0.0,
+                1.0,  1.0,
+                0.0,  1.0,
+                // Right
+                0.0,  0.0,
+                1.0,  0.0,
+                1.0,  1.0,
+                0.0,  1.0,
+                // Left
+                 0.0,  0.0,
+                1.0,  0.0,
+                1.0,  1.0,
+                0.0,  1.0,
+              ];
           const cubeVerticesColorBuffer = gl.createBuffer();
           gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesColorBuffer);
-          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
 
             
           console.log('ColorsBuffer' ,gl.getBufferParameter(gl.ARRAY_BUFFER, gl.BUFFER_SIZE))
 
          const indexBuffer = gl.createBuffer();
          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-         //ÎªÁËÊµÏÖ¹ı¶ÈÊ±µÄÕı³£±íÏÖ Ó¦¸ÃÓÃÉÈĞÎ
+         //ä¸ºäº†å®ç°è¿‡åº¦æ—¶çš„æ­£å¸¸è¡¨ç° åº”è¯¥ç”¨æ‰‡å½¢
          const indices = [
               0,  1,  2,      0,  2,  3,    // front
               4,  5,  6,      4,  6,  7,    // back
@@ -257,7 +315,7 @@
               16, 17, 18,     16, 18, 19,   // right
               20, 21, 22,     20, 22, 23,   // left
           ];
-          // Ë÷Òı±ØÈ»ÊÇÕûĞÍ
+          // ç´¢å¼•å¿…ç„¶æ˜¯æ•´å‹
           gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
             new Uint16Array(indices), gl.STATIC_DRAW);
           console.log('indexBuffer' ,gl.getBufferParameter(gl.ELEMENT_ARRAY_BUFFER, gl.BUFFER_SIZE))
@@ -274,27 +332,27 @@
 
   		  function drawScene(gl, programInfo, buffers,texture,deltaTime) {
 
-  		  	// ÓÃ±³¾°É« ²Á³ıÉÏÏÂàÅ 
+  		  	// ç”¨èƒŒæ™¯è‰² æ“¦é™¤ä¸Šä¸‹å—¯ 
   		    gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
   		    gl.clearDepth(1.0);                 // Clear everything
   		    gl.enable(gl.DEPTH_TEST);           // Enable depth testing
   		    gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
   		    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  		    // ½¨Á¢ÉãÏñ»úÍ¸ÊÓ¾ØÕó  45¶ÈÊÓ½Ç ¿í¸ß±È  0.1  100 ¿É¼û
-          // Ä¿Ç° Ä£ĞÍ×ø±êÏµºÍÍ¶Ó°×ø±êÏµ  Ô­µãÖØºÏ
+  		    // å»ºç«‹æ‘„åƒæœºé€è§†çŸ©é˜µ  45åº¦è§†è§’ å®½é«˜æ¯”  0.1  100 å¯è§
+          // ç›®å‰ æ¨¡å‹åæ ‡ç³»å’ŒæŠ•å½±åæ ‡ç³»  åŸç‚¹é‡åˆ
           const projectionMatrix = mat4.create();
           const modelViewMatrix = mat4.create();
             makePerspective(projectionMatrix,90, 640.0/480.0, 0.1, 100.0);
-          //¼ÓÔØÌØ¶¨Î»ÖÃ
+          //åŠ è½½ç‰¹å®šä½ç½®
           // loadIdentity();
-          // Õı·½ĞÎ ·ÅÔÚ¾àÀëÉãÏñ»ú6¸öµ¥Î»Î»ÖÃ 
+          // æ­£æ–¹å½¢ æ”¾åœ¨è·ç¦»æ‘„åƒæœº6ä¸ªå•ä½ä½ç½® 
           // mat4.translate(modelViewMatrix,     // destination matrix
           //        modelViewMatrix,     // matrix to translate
           //        [-0.0, 0.0, -6.0]);  // amount to translate
-          // »æÖÆ³¡¾°  ÓÉÓÚÃ»ÓĞ¶¯»­ ËùÒÔÕâ¸ö·½·¨·Ç³£¼òµ¥ 
+          // ç»˜åˆ¶åœºæ™¯  ç”±äºæ²¡æœ‰åŠ¨ç”» æ‰€ä»¥è¿™ä¸ªæ–¹æ³•éå¸¸ç®€å• 
   		  
 
-          // Í¨¹ı4Î¬¾ØÕójs¿â  ÓÒÊÖ×ø±êÏµ ÆÁÄ»·¨ÏßÎªz ¼´ÈÆzÕıÖáÖáË³Ê±ÕëĞı×ª45¶È
+          // é€šè¿‡4ç»´çŸ©é˜µjsåº“  å³æ‰‹åæ ‡ç³» å±å¹•æ³•çº¿ä¸ºz å³ç»•zæ­£è½´è½´é¡ºæ—¶é’ˆæ—‹è½¬45åº¦
                       
 
          //                    |y
@@ -304,7 +362,7 @@
          //                  /                  
          //                 /z
          
-         //ÊÂÊµÉÏ¾ØÕóÊÇ×ó³ËµÄ  ÏÂÊ½ÎªÏÈĞı×ªºóÒÆ¶¯
+         //äº‹å®ä¸ŠçŸ©é˜µæ˜¯å·¦ä¹˜çš„  ä¸‹å¼ä¸ºå…ˆæ—‹è½¬åç§»åŠ¨
           // mat4.translate(modelViewMatrix,modelViewMatrix,[4,0,-6])
           // mat4.rotate(modelViewMatrix,modelViewMatrix,Math.PI/2,[0,0,1])
           
@@ -314,7 +372,7 @@
           mat4.rotate(modelViewMatrix,modelViewMatrix,zRotatation*4,[1,0,0])
           zRotatation += deltaTime*rotateRatio
 
-          // Õâ¸öÅĞ¶ÏÓĞµãÎÊÌâ µ±ÅöÉÏ´óÁ¿¼ÆËã »òÕß Àë¿ªÒ³ÃæÊ±  »áµ¼ÖÂdeltaTimeÊ±¼ä¹ı³¤ µ¼ÖÂÔö¼ÓÁ¿¹ı´ó Ò»´ÎĞÔÍ»ÆÆÁÙ½ç
+          // è¿™ä¸ªåˆ¤æ–­æœ‰ç‚¹é—®é¢˜ å½“ç¢°ä¸Šå¤§é‡è®¡ç®— æˆ–è€… ç¦»å¼€é¡µé¢æ—¶  ä¼šå¯¼è‡´deltaTimeæ—¶é—´è¿‡é•¿ å¯¼è‡´å¢åŠ é‡è¿‡å¤§ ä¸€æ¬¡æ€§çªç ´ä¸´ç•Œ
           if( xTranslation<=6 && xTranslation+xTPositive*deltaTime*translateRatio>6
             ||  xTranslation>= -6 && xTranslation+xTPositive*deltaTime*translateRatio<-6
             ){
@@ -340,15 +398,15 @@
 
 
          {
-      		    // °ó¶¨ Õı·½ĞÎ¶¥µã»º³åµ½ÉÏÏÂÎÄ  
+      		    // ç»‘å®š æ­£æ–¹å½¢é¡¶ç‚¹ç¼“å†²åˆ°ä¸Šä¸‹æ–‡  
       		    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
-      		    //°ó¶¨ÑÕÉ«µ½ÉÏÏÂÎÄ
+      		    //ç»‘å®šé¢œè‰²åˆ°ä¸Šä¸‹æ–‡
       		    
       		    //  Tell WebGL how to pull out the positions from the position
     			  // buffer into the vertexPosition attribute.
       		    gl.vertexAttribPointer( programInfo.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
 
-              // ¿ÉÒÔÓÃÕâ¸ö·½·¨ĞŞ¸Ä ÒÑÔØÈëµÄÊı¾İ 
+              // å¯ä»¥ç”¨è¿™ä¸ªæ–¹æ³•ä¿®æ”¹ å·²è½½å…¥çš„æ•°æ® 
               // gl.bufferSubData( gl.ARRAY_BUFFER,0, new Float32Array([
               //               1.0,  -1.0, 0.0,
               //               1.0,  1.0,  0.0,
@@ -359,8 +417,8 @@
               
       		    gl.enableVertexAttribArray(
             		programInfo.attribLocations.vertexPosition);
-      		    // ÖÆ¶¨»º´æ  ¼¸¸öbufferÎªÒ»¸öÊı¾İ  Êı¾İÀàĞÍ Ã¿×éÊı¾İ¸ô¼¸¸ö  ÒÔ¼°offset
-      		    //   bindBuffer Ò»¶¨²»ÄÜÁ¬Ğ´
+      		    // åˆ¶å®šç¼“å­˜  å‡ ä¸ªbufferä¸ºä¸€ä¸ªæ•°æ®  æ•°æ®ç±»å‹ æ¯ç»„æ•°æ®éš”å‡ ä¸ª  ä»¥åŠoffset
+      		    //   bindBuffer ä¸€å®šä¸èƒ½è¿å†™
       		    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.textureCoord);
     		      gl.vertexAttribPointer(programInfo.attribLocations.textureCoord, 2, gl.FLOAT, false, 0, 0)
       		    gl.enableVertexAttribArray(
@@ -392,9 +450,9 @@
 
             // Tell the shader we bound the texture to texture unit 0
             gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
-  		    // Í¨¹ı drawArrays·½·¨ »­³öÍ¼Ïñ  offset vertexCount
-          //  »æÖÆÍ¼ÔªµÄ·½Ê½ Èı½Ç´ø  Èı½ÇÉÈ  N-2 trianglesÏµÁĞÈı½Ç ´ÓÄÄ¸öµã¿ªÊ¼ »­¼¸¸öµã
-          //  °´Ë÷ÒıÈ¥Ñ°ÕÒ¶¥µãÎ»ÖÃ,ÓÉÓÚÊÇ°´TRIANGLE_TRIGLES»æÖÆ 6¸öÃæĞèÒª12¸öÈı½ÇĞÎĞèÒª36¸öµã
+  		    // é€šè¿‡ drawArraysæ–¹æ³• ç”»å‡ºå›¾åƒ  offset vertexCount
+          //  ç»˜åˆ¶å›¾å…ƒçš„æ–¹å¼ ä¸‰è§’å¸¦  ä¸‰è§’æ‰‡  N-2 trianglesç³»åˆ—ä¸‰è§’ ä»å“ªä¸ªç‚¹å¼€å§‹ ç”»å‡ ä¸ªç‚¹
+          //  æŒ‰ç´¢å¼•å»å¯»æ‰¾é¡¶ç‚¹ä½ç½®,ç”±äºæ˜¯æŒ‰TRIANGLE_TRIGLESç»˜åˆ¶ 6ä¸ªé¢éœ€è¦12ä¸ªä¸‰è§’å½¢éœ€è¦36ä¸ªç‚¹
   		    gl.drawElements(gl.TRIANGLES, 36,gl.UNSIGNED_SHORT, 0);
   		  }
 
@@ -426,6 +484,7 @@
           const image = new Image();
           image.crossOrigin = "anonymous"
           image.onload = function() {
+            window.image=image
             gl.bindTexture(gl.TEXTURE_2D, texture);
             gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
                           srcFormat, srcType, image);
@@ -463,19 +522,19 @@
 
   		  }
 
-  		  //  ³õÊ¼»¯×ÅÉ«Æ÷³ÌĞò£¬ÈÃWebGLÖªµÀÈçºÎ»æÖÆÎÒÃÇµÄÊı¾İ
+  		  //  åˆå§‹åŒ–ç€è‰²å™¨ç¨‹åºï¼Œè®©WebGLçŸ¥é“å¦‚ä½•ç»˜åˆ¶æˆ‘ä»¬çš„æ•°æ®
   		  function initShaderProgram(gl, vsSource, fsSource) {
   		    const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
   		    const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
 
-  		    // ´´½¨×ÅÉ«Æ÷³ÌĞò
+  		    // åˆ›å»ºç€è‰²å™¨ç¨‹åº
 
   		    const shaderProgram = gl.createProgram();
   		    gl.attachShader(shaderProgram, vertexShader);
   		    gl.attachShader(shaderProgram, fragmentShader);
   		    gl.linkProgram(shaderProgram);
 
-  		    // ´´½¨Ê§°Ü£¬ alert
+  		    // åˆ›å»ºå¤±è´¥ï¼Œ alert
   		    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
   		      alert('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
   		      return null;
@@ -486,7 +545,7 @@
 
 
   		  //
-  		  // ´´½¨Ö¸¶¨ÀàĞÍµÄ×ÅÉ«Æ÷£¬ÉÏ´«sourceÔ´Âë²¢±àÒë
+  		  // åˆ›å»ºæŒ‡å®šç±»å‹çš„ç€è‰²å™¨ï¼Œä¸Šä¼ sourceæºç å¹¶ç¼–è¯‘
   		  //
   		  function loadShader(gl, type, source) {
   		    const shader = gl.createShader(type);
@@ -509,6 +568,14 @@
 
   		    return shader;
   		  }
+        function createObjectURL(blob){
+               if(window.URL){
+                   return window.URL.createObjectURL(blob);
+               }else if(window.webkitURL){
+                   return window.webkitURL.createObjectURL(blob);
+               }
+                   return null;
+        }
   </script>
 </body>
 
